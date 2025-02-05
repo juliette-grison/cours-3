@@ -9,7 +9,6 @@ df_Loire_Atlantique <- subset(data_exercice, Libellé.du.département == "Loire-
 df_Gers <- subset(data_exercice, Libellé.du.département == "Gers")
 
 # Question 3
-
 validate_schema <- function(df) {
   schema <- c("Code.du.département", "Libellé.du.département", "Code.de.la.collectivité.à.statut.particulier", 
               "Libellé.de.la.collectivité.à.statut.particulier", "Code.de.la.commune", 
@@ -24,7 +23,6 @@ validate_schema <- function(df) {
 library(dplyr)
 compter_nombre_d_elus <- function(df) {
   validate_schema(df)
-  
   df |>
     select(Nom.de.l.élu, Prénom.de.l.élu, Date.de.naissance) |>
     distinct() |>
@@ -48,12 +46,33 @@ library(lubridate)
 trouver_l_elu_le_plus_age <- function(df) {
   validate_schema(df)
   df |>
-    mutate(DAte.de.naissance = dmy(Date.de.naissance)) |>
+    mutate(Date.de.naissance = dmy(Date.de.naissance)) |>
     slice(which.min(Date.de.naissance)) |>
     select(Nom.de.l.élu, Prénom.de.l.élu, Date.de.naissance)
 }
 
 sapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), trouver_l_elu_le_plus_age)
 
-purr::map_df(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers),
-             .f = trouver_l_elu_le_plus_age |>
+# purr::map_df(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers),
+  #           .f = trouver_l_elu_le_plus_age |>
+
+# Question 6
+
+calcul_distribution_age <- function(df) {
+  validate_schema(df)  
+  
+  # Convertir la date de naissance en format Date et calculer l'âge
+  df |>
+    mutate(Date.de.naissance = dmy(Date.de.naissance),
+           age = as.integer(difftime(Sys.Date(), Date.de.naissance, units = "days") / 365.25)) |>
+    summarise(
+      quantile_0 = min(age, na.rm = TRUE),
+      quantile_25 = quantile(age, 0.25, na.rm = TRUE),
+      quantile_50 = quantile(age, 0.50, na.rm = TRUE),
+      quantile_75 = quantile(age, 0.75, na.rm = TRUE),
+      quantile_100 = max(age, na.rm = TRUE)
+    )
+}
+
+sapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), calcul_distribution_age)
+
