@@ -61,7 +61,6 @@ sapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), trouver_l_e
 calcul_distribution_age <- function(df) {
   validate_schema(df)  
   
-  # Convertir la date de naissance en format Date et calculer l'âge
   df |>
     mutate(Date.de.naissance = dmy(Date.de.naissance),
            age = as.integer(difftime(Sys.Date(), Date.de.naissance, units = "days") / 365.25)) |>
@@ -75,4 +74,33 @@ calcul_distribution_age <- function(df) {
 }
 
 sapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), calcul_distribution_age)
+
+# Question 7
+library(ggplot2)
+
+plot_code_professions <- function(df) {
+  validate_schema(df)
+  
+  count_data <- df |>
+    group_by(Code.de.la.catégorie.socio.professionnelle) |>
+    summarise(nombre = n()) |>
+    arrange(nombre)
+  
+  ggplot(count_data, aes(
+    x = nombre,
+    y = reorder(
+      Code.de.la.catégorie.socio.professionnelle, nombre
+    )
+  )
+  ) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    labs(title = "Nombre d'élus par code de catégorie socio-professionelle",
+         x = "Nombre d'élus",
+         y = "Code de la catégorie socio-professionnelle") +
+    theme_minimal()
+  
+  return(count_data)
+}
+
+lapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), plot_code_professions)
 
