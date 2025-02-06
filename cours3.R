@@ -1,6 +1,8 @@
 # Question 2
 data_exercice <- read.table("C:/Users/julie/Documents/semestre 2/R avancé et GitHub/cours_r_semaine_3/data/elus-conseillers-municipaux-cm.csv", header = TRUE, sep = ";", quote = "")
 
+library(dplyr)
+
 data <- as_tibble(data_exercice)
 
 df_Nantes <- subset(data_exercice, Libellé.de.la.commune == "Nantes")
@@ -20,7 +22,6 @@ validate_schema <- function(df) {
   stopifnot(identical(colnames(df), schema))
 }
 
-library(dplyr)
 compter_nombre_d_elus <- function(df) {
   validate_schema(df)
   df |>
@@ -46,9 +47,12 @@ library(lubridate)
 trouver_l_elu_le_plus_age <- function(df) {
   validate_schema(df)
   df |>
-    mutate(Date.de.naissance = dmy(Date.de.naissance)) |>
-    slice(which.min(Date.de.naissance)) |>
-    select(Nom.de.l.élu, Prénom.de.l.élu, Date.de.naissance)
+    mutate(
+      Date.de.naissance = dmy(Date.de.naissance),
+      Âge = as.integer(interval(Date.de.naissance, today()) / years(1))
+      ) |>
+    slice(which.max(Âge)) |>
+    select(Nom.de.l.élu, Prénom.de.l.élu, Âge)
 }
 
 sapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), trouver_l_elu_le_plus_age)
@@ -99,8 +103,50 @@ plot_code_professions <- function(df) {
          y = "Code de la catégorie socio-professionnelle") +
     theme_minimal()
   
-  return(count_data)
 }
 
 lapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), plot_code_professions)
 
+# Question 8
+## Attribution de la classe "commune" aux 2 df concernés
+class(df_Nantes) <- c("commune", class(df_Nantes))
+class(df_Faverelles) <- c("commune", class(df_Faverelles))
+
+## Création de la fonxtion générique
+summary.commune <- function(x, ...) {
+  # Vérifier que x est bien un data.frame
+  if (!is.data.frame(x)) {
+    stop("L'objet fourni n'est pas un data.frame.")
+  }
+  
+  # Vérifier que la colonne 'Commune' existe
+  if (!"Libellé.de.la.commune" %in% names(x)) {
+    stop("La colonne 'Libellé.de.la.commune' est absente du dataframe.")
+  }
+  
+  # Vérifier qu'il s'agit d'une seule commune
+  commune_unique <- unique(x$Libellé.de.la.commune)
+  if (length(commune_unique) != 1) {
+    stop("Le dataframe contient plusieurs communes. Fournissez un dataframe ne contenant qu'une seule commune.")
+  }
+  
+  # Extraire le nom de la commune
+  nom_commune <- commune_unique
+  
+  # Utiliser les fonctions existantes
+  nombre_elus <- compter_nombre_d_elus(x)
+  distribution_ages <- calcul_distribution_age(x)
+  elu_plus_age <- trouver_l_elu_le_plus_age(x)
+  
+  # Affichage des résultats
+  cat("\nNom de la commune :", nom_commune, "\n")
+  cat("Nombre d'élu.e.s :", nombre_elus, "\n")
+  cat("Distribution des âges des élu.e.s :\n")
+  print(distribution_ages)
+  cat("\nL'élu.e le/la plus âgé.e :\n")
+  print(elu_plus_age)
+}
+
+## Test sur les 2 df concernés
+summary(df_Nantes)
+summary(df_Faverelles)
