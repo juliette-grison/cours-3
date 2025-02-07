@@ -1,7 +1,10 @@
+library(dplyr)
+library(stringr)
+library(lubridate)
+library(ggplot2)
+
 # Question 2
 data_exercice <- read.table("C:/Users/julie/Documents/semestre 2/R avancé et GitHub/cours_r_semaine_3/data/elus-conseillers-municipaux-cm.csv", header = TRUE, sep = ";", quote = "")
-
-library(dplyr)
 
 data <- as_tibble(data_exercice)
 
@@ -33,7 +36,6 @@ compter_nombre_d_elus <- function(df) {
 sapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), compter_nombre_d_elus)
 
 # Question 4
-library(stringr)
 compter_nombre_d_adjoints <- function(df) {
   validate_schema(df)
   
@@ -43,7 +45,6 @@ compter_nombre_d_adjoints <- function(df) {
 sapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), compter_nombre_d_adjoints)
 
 # Question 5 (avec dplyr)
-library(lubridate)
 trouver_l_elu_le_plus_age <- function(df) {
   validate_schema(df)
   df |>
@@ -61,7 +62,6 @@ sapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), trouver_l_e
   #           .f = trouver_l_elu_le_plus_age |>
 
 # Question 6
-
 calcul_distribution_age <- function(df) {
   validate_schema(df)  
   
@@ -80,8 +80,6 @@ calcul_distribution_age <- function(df) {
 sapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), calcul_distribution_age)
 
 # Question 7
-library(ggplot2)
-
 plot_code_professions <- function(df) {
   validate_schema(df)
   
@@ -112,8 +110,11 @@ lapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), plot_code_p
 class(df_Nantes) <- c("commune", class(df_Nantes))
 class(df_Faverelles) <- c("commune", class(df_Faverelles))
 
-## Création de la fonxtion générique
+## Création de la fonction générique
 summary.commune <- function(x, ...) {
+  if (!inherits(x, "commune")) {
+    stop("L'objet fourni n'est pas une commune")
+  }
 
     # Vérifier que x est bien un data.frame
   if (!is.data.frame(x)) {
@@ -153,11 +154,15 @@ summary(df_Nantes)
 summary(df_Faverelles)
 
 # Question 9
+## Attribution de la classe "departement" aux 2 df concernés
 class(df_Loire_Atlantique) <- c("departement", class(df_Loire_Atlantique))
 class(df_Gers) <- c("departement", class(df_Gers))
 
-summary.departement <- function(x) {
-  validate_schema(x)  # Vérifie que le schéma du dataframe est correct
+## Création de la fonxtion générique
+summary.departement <- function(x, ...) {
+  if (!inherits(x, "departement")) {
+    stop("L'objet fourni n'est pas un département.")
+  }
   
   # Vérifier que x est bien un data.frame
   if (!is.data.frame(x)) {
@@ -240,6 +245,89 @@ summary.departement <- function(x) {
   print(distribution_age_max)
 }
 
-
+## Test sur les 2 df concernés
 summary(df_Gers)
 summary(df_Loire_Atlantique)
+
+# Question 10
+plot.commune <- function(x, ...) {
+  if (!inherits(x, "commune")) {
+    stop("L'objet fourni n'est pas une commune")
+  }
+  
+  # Vérifier que la commune et le département sont bien définis
+  if (!"Libellé.de.la.commune" %in% names(x) | !"Libellé.du.département" %in% names(x)) {
+    stop("Les colonnes 'Libellé.de.la.commune' et/ou 'Libellé.du.département' sont absentes du dataframe.")
+  }
+  
+  # Extraire le nom de la commune et du département
+  nom_commune <- unique(x$Libellé.de.la.commune)
+  nom_departement <- unique(x$Libellé.du.département)
+  
+  if (length(nom_commune) != 1 | length(nom_departement) != 1) {
+    stop("Le dataframe contient plusieurs communes ou plusieurs départements. Fournissez un dataframe avec une seule commune.")
+  }
+  
+  # Compter le nombre d'élus par code professionnel
+  count_data <- x |>
+    group_by(Code.de.la.catégorie.socio.professionnelle) |>
+    summarise(nombre = n()) |>
+    arrange(nombre)
+  
+  # Définir le titre du graphique
+  titre_graphique <- paste(nom_commune, "-", nom_departement)
+  
+  # Nombre total d'élus dans la commune
+  nombre_elus <- sum(count_data$nombre)
+  
+  # Définir le label de l'axe des abscisses
+  label_x <- paste("Libellés des codes professionnels pour les élus (", nombre_elus, " élus)", sep = "")
+  
+  # Créer le graphique avec ggplot
+  ggplot(count_data, aes(
+    x = nombre,
+    y = reorder(Code.de.la.catégorie.socio.professionnelle, nombre)
+  )) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    labs(title = titre_graphique,
+         x = label_x,
+         y = "Code de la catégorie socio-professionnelle") +
+    theme_minimal()
+}
+
+plot.commune(df_Nantes)
+plot.commune(df_Faverelles)
+
+# Question 11
+plot.departement <- function(x, ...) {
+  if (!inherits(x, "departement")) {
+    stop("L'objet fourni n'est pas un département.")
+  }
+  
+  # Récupération du nom du département et du nombre de communes
+  nom_departement <- unique(x$Libellé.du.département)
+  nombre_communes <- length(unique(x$Libellé.de.la.commune))
+  
+  # Regrouper et compter les élus par code professionnel
+  count_data <- x |>
+    group_by(Code.de.la.catégorie.socio.professionnelle) |>
+    summarise(nombre = n()) |>
+    arrange(desc(nombre)) |>  # Trier par ordre décroissant
+    slice_head(n = 10)  # Garder les 10 plus fréquents
+  
+  # Création du graphique avec ggplot
+  ggplot(count_data, aes(
+    x = nombre,
+    y = reorder(Code.de.la.catégorie.socio.professionnelle, nombre)
+  )) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    labs(
+      title = paste("Répartition des élus par code professionnel -", nom_departement, "-", nombre_communes, "communes"),
+      x = paste("Libellés des 10 codes professionnels les plus représentés pour le département", nom_departement),
+      y = "Code de la catégorie socio-professionnelle"
+    ) +
+    theme_minimal()
+}
+
+plot(df_Loire_Atlantique)
+plot(df_Gers)
