@@ -39,7 +39,9 @@ sapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), compter_nom
 compter_nombre_d_adjoints <- function(df) {
   validate_schema(df)
   
-  sum(str_detect(df$Libellé.de.la.fonction, "adjoint"))
+  df |>
+    filter(grepl("adjoint", Libellé.de.la.fonction, ignore.case = TRUE)) |>
+    nrow()
 }
 
 sapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), compter_nombre_d_adjoints)
@@ -57,9 +59,6 @@ trouver_l_elu_le_plus_age <- function(df) {
 }
 
 sapply(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers), trouver_l_elu_le_plus_age)
-
-# purr::map_df(list(df_Nantes, df_Faverelles, df_Loire_Atlantique, df_Gers),
-  #           .f = trouver_l_elu_le_plus_age |>
 
 # Question 6
 calcul_distribution_age <- function(df) {
